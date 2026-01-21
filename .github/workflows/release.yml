@@ -202,4 +202,29 @@ jobs:
         with:
           repo_token: ${{ secrets.GITHUB_TOKEN }}
           file: build_assets/slipstream-client-${{ env.ASSET_NAME }}${{ env.EXE_EXT }}
-          asset_name
+          asset_name: slipstream-client-${{ env.ASSET_NAME }}${{ env.EXE_EXT }}
+          tag: ${{ github.ref }}
+          overwrite: true
+
+      - name: Upload server binary to release
+        uses: svenstaro/upload-release-action@v2
+        with:
+          repo_token: ${{ secrets.GITHUB_TOKEN }}
+          file: build_assets/slipstream-server-${{ env.ASSET_NAME }}${{ env.EXE_EXT }}
+          asset_name: slipstream-server-${{ env.ASSET_NAME }}${{ env.EXE_EXT }}
+          tag: ${{ github.ref }}
+          overwrite: true
+
+      - name: Upload client artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: slipstream-client-${{ env.ASSET_NAME }}
+          path: build_assets/slipstream-client-${{ env.ASSET_NAME }}${{ env.EXE_EXT }}
+          retention-days: 7
+
+      - name: Upload server artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: slipstream-server-${{ env.ASSET_NAME }}
+          path: build_assets/slipstream-server-${{ env.ASSET_NAME }}${{ env.EXE_EXT }}
+          retention-days: 7
