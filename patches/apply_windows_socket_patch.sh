@@ -132,7 +132,7 @@ fi
 # Patch the dummy_sockaddr_storage function in server.rs for Windows
 # This function creates a dummy IPv6 address for initialization
 SERVER_RS="crates/slipstream-server/src/server.rs"
-if [ -f "$SERVER_RS" ]; then
+if [ -f "$SERVER_RS" ] && grep -q "^fn dummy_sockaddr_storage()" "$SERVER_RS"; then
   echo "Patching dummy_sockaddr_storage in $SERVER_RS..."
   
   # Add Windows conditional for dummy_sockaddr_storage
@@ -155,7 +155,47 @@ fn dummy_sockaddr_storage() -> slipstream_ffi::SockaddrStorage {
 }
 DUMMY_STORAGE
   
-  echo "Successfully patched dummy_sockaddr_storage"
+  echo "Successfully patched dummy_sockaddr_storage in $SERVER_RS"
+fi
+
+# Patch udp_fallback.rs for Windows socket types
+UDP_FALLBACK_RS="crates/slipstream-server/src/udp_fallback.rs"
+if [ -f "$UDP_FALLBACK_RS" ]; then
+  echo "Patching $UDP_FALLBACK_RS to use SockaddrStorage from slipstream_ffi..."
+  
+  # Replace libc::sockaddr_storage with slipstream_ffi::SockaddrStorage
+  sed -i 's/libc::sockaddr_storage/slipstream_ffi::SockaddrStorage/g' "$UDP_FALLBACK_RS"
+  
+  # Check if dummy_sockaddr_storage function exists and patch it
+  # The function uses libc::sockaddr_in6, libc::AF_INET6, etc. which don't exist on Windows
+  # So we wrap the entire function with #[cfg(not(windows))] and provide a Windows alternative
+  if grep -q "fn dummy_sockaddr_storage()" "$UDP_FALLBACK_RS"; then
+    echo "Patching dummy_sockaddr_storage in $UDP_FALLBACK_RS..."
+    
+    # Add Windows conditional for dummy_sockaddr_storage (handling potential whitespace)
+    sed -i 's/^\(fn dummy_sockaddr_storage()\)/#[cfg(not(windows))]\n\1/' "$UDP_FALLBACK_RS"
+    
+    # Append Windows version of dummy_sockaddr_storage
+    cat >> "$UDP_FALLBACK_RS" << 'DUMMY_STORAGE_UDP'
+
+#[cfg(windows)]
+fn dummy_sockaddr_storage() -> slipstream_ffi::SockaddrStorage {
+    use std::net::{Ipv6Addr, SocketAddrV6};
+    slipstream_ffi::socket_addr_to_storage(
+        std::net::SocketAddr::V6(SocketAddrV6::new(
+            Ipv6Addr::new(0x2001, 0xdb8, 0, 0, 0, 0, 0, 1),
+            12345,
+            0,
+            0,
+        ))
+    )
+}
+DUMMY_STORAGE_UDP
+    
+    echo "Successfully patched dummy_sockaddr_storage in $UDP_FALLBACK_RS"
+  fi
+  
+  echo "Successfully patched $UDP_FALLBACK_RS"
 fi
 
 # Patch slipstream-client files to use SockaddrStorage from slipstream_ffi

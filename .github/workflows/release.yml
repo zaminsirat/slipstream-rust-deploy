@@ -395,6 +395,13 @@ jobs:
             perl -i -pe 's/(let sockaddr = libc::sockaddr_in \{)/$1\n                sin_len: std::mem::size_of::<libc::sockaddr_in>() as u8,/' "$SERVER_RS"
             perl -i -pe 's/(let sockaddr = libc::sockaddr_in6 \{)/$1\n                sin6_len: std::mem::size_of::<libc::sockaddr_in6>() as u8,/' "$SERVER_RS"
           fi
+          
+          # Patch udp_fallback.rs
+          UDP_FALLBACK_RS="crates/slipstream-server/src/udp_fallback.rs"
+          if [ -f "$UDP_FALLBACK_RS" ] && ! grep -q "sin6_len:" "$UDP_FALLBACK_RS"; then
+            perl -i -pe 's/(let sockaddr = libc::sockaddr_in \{)/$1\n        sin_len: std::mem::size_of::<libc::sockaddr_in>() as u8,/' "$UDP_FALLBACK_RS"
+            perl -i -pe 's/(let sockaddr = libc::sockaddr_in6 \{)/$1\n        sin6_len: std::mem::size_of::<libc::sockaddr_in6>() as u8,/' "$UDP_FALLBACK_RS"
+          fi
 
       - name: Patch picoquic headers for Windows (arpa/inet.h -> winsock2.h)
         if: runner.os == 'Windows'
